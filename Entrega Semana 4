@@ -1,0 +1,79 @@
+/* ============================================================
+-- M4 - Consultas SQL de negocio
+--Proyecto RetailPro - Base de datos Ventas_Tech_DB
+-- Tabla utilizada: ventas (id_cliente, id_producto, cantidad, precio_unitario, fecha_venta)
+============================================================*/
+
+/* Consulta 1 — Resumen ejecutivo mensual Total facturado, cantidad de pedidos y ticket promedio, agrupados por mes. 
+Calculá el total como cantidad * precio_unitario. Usá alias descriptivos en español y agrupá por mes con EXTRACT(MONTH FROM fecha_venta).*/
+
+SELECT 
+MONTH (fecha_venta) AS Mes,
+SUM(cantidad * precio_unitario) AS Total_Facturado,
+COUNT(*) AS Cantidad_pedidos,
+ROUND(AVG(cantidad * precio_unitario), 2) AS Ticket_Promedio
+FROM dbo.ventas 
+
+GROUP BY MONTH (fecha_venta)
+ORDER BY Mes;
+
+
+/* Consulta 2 — Ranking de productos Top 5 de id_producto por total facturado, mostrando las unidades vendidas (SUM(cantidad)) y el total generado.
+Usá GROUP BY id_producto, ORDER BY y limitá el resultado a 5.*/
+
+SELECT TOP 5
+    id_producto,
+    SUM(cantidad) AS Unidades_Vendidas,
+    SUM(cantidad * precio_unitario) AS Total_Facturado
+FROM dbo.ventas
+GROUP BY id_producto
+ORDER BY Total_Facturado DESC;
+
+/* Consulta 3 — Clientes recurrentes id_cliente que hayan realizado más de un pedido, mostrando la cantidad de pedidos y el total gastado. Usá GROUP BY id_cliente y HAVING COUNT(*) > 1.*/
+
+SELECT
+    id_cliente,
+    COUNT(*) AS cantidad_pedidos,
+    SUM(cantidad * precio_unitario) AS Total_Gastado
+FROM dbo.ventas
+GROUP BY id_cliente
+HAVING COUNT(*) > 1
+ORDER BY Total_Gastado DESC;
+
+/* Consulta 4 — Meses por encima/por debajo del promedio Total facturado por mes, 
+con una columna adicional que etiquete con CASE WHEN si ese mes quedó 'Por encima' o 'Por debajo' del promedio mensual general.*/
+SELECT
+    MONTH(fecha_venta) AS Mes,
+    SUM(cantidad * precio_unitario) AS Total_Facturado,
+CASE
+   WHEN SUM(cantidad * precio_unitario) > (
+   SELECT AVG(total_mes)
+   FROM (
+   SELECT SUM(cantidad * precio_unitario) AS Total_Mes
+   FROM dbo.ventas
+   GROUP BY MONTH(fecha_venta)
+            ) AS Promedios
+        ) THEN 'Por encima'
+        ELSE 'Por debajo'
+    END AS Comparacion_Promedio
+FROM dbo.ventas
+GROUP BY MONTH(fecha_venta)
+ORDER BY Mes;
+
+/* Bloque de cierre Al final del archivo agregá un bloque de comentarios -- con 3 hallazgos concretos que encontraste al revisar los resultados. Por ejemplo: "El producto 1 concentra el 40% de la facturación del trimestre" */
+============================================================
+-- Hallazgos
+============================================================
+
+/* 1. El producto 1 (Laptop Pro 15) concentra el 55.9% de la facturación
+total ($3600 de $6444) con 3 unidades vendidas, debido a su
+precio unitario alto frente a los demás.
+
+2. Todas las ventas del dataset actual son en marzo, por lo que el
+ticket promedio general es de $644.40 pero no hay otros meses
+para comparar variación mensual real; se necesitan más registros
+para un análisis mensual representativo.
+
+3. El 100% de los clientes (5 de 5) realizó más de un pedido,
+concentrando el 100% de la facturación total. Esto muestra que el negocio depende completamente de
+clientes recurrentes.*/
